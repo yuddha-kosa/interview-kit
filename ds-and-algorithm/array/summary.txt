@@ -1,0 +1,15 @@
+Two pointer      → sorted pair sum, three sum, container
+Prefix/suffix    → product except self
+Sliding window   → maximum subarray, Kadane's
+Min/max tracker  → stock trading
+Dutch flag       → sorting colors
+
+
+✅ Missing number
+✅ Sorting colors — 3 approaches
+✅ Product except self — 3 approaches
+✅ Sorted pair sum — two pointer
+✅ Three sum — sort + two pointer
+✅ Maximum container — two pointer
+✅ Maximum subarray — Kadane's
+✅ Stock trading — min tracker
