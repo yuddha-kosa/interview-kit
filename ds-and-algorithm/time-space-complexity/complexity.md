@@ -44,3 +44,40 @@ Binary search      O(log n)       O(log n)         O(1)
 Merge sort (array) O(n log n)     O(log n)         O(n)
 Quick sort         O(n log n) avg O(log n) avg      O(1)
 Merge sort (list)  O(n log n)     O(log n)         O(1)
+
+
+
+tree depth = log n
+
+"at each level we are reading once" — exactly right, each
+level of the B-tree = ONE disk page read (same idea as ONE
+hop in union-find, or ONE comparison in BST search)
+
+"total number of levels is log n" — exactly right in
+PRINCIPLE, but the BASE of the logarithm matters, and it
+depends on the BRANCHING FACTOR, not always base-2
+
+Binary tree / union-find (branching factor = 2):
+    levels = log₂(n)
+
+B-tree with branching factor 100:
+    levels = log₁₀₀(n)     <- MUCH SHALLOWER than log₂(n)
+                              for the SAME n, since each level
+                              "absorbs" 100x more entries,
+                              not just 2x
+
+For n=10,000, branching=100:
+    100^1 = 100        (not enough to cover 10,000)
+    100^2 = 10,000     (EXACTLY covers it) -> 2 levels needed
+
+Why B-trees deliberately use a HIGH branching factor (not just 2, like a BST):
+This connects directly to WHY database indexes use B-trees
+specifically (not binary search trees): a HIGHER branching
+factor means FEWER LEVELS needed for the SAME number of
+entries — and since each LEVEL = one disk read (expensive,
+compared to in-memory operations), MINIMIZING levels
+minimizes expensive disk I/O.
+
+log₁₀₀(n) grows MUCH slower than log₂(n) as n increases —
+this is EXACTLY why real databases use branching factors in
+the hundreds, not binary trees, for on-disk indexes.

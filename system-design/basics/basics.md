@@ -58,6 +58,7 @@ System design:
 56. Normalization and denormalization.
 57. Cache stampede, In-process caching 
 58. Fuzzy logic
+59. Patterns- eg: singleton, factory etc...
 
 
 
