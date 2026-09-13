@@ -1,6 +1,8 @@
 # If left number is taller than right number → swap them
 # Move to next pair
 # Repeat
+# after each iteration the current largest will become sorted because the largest from
+# the current lot will be swapped to the last
 def bubble_sort(arr):
 
     for i in range(len(arr)-1):

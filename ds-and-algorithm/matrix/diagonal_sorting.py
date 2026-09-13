@@ -26,3 +26,32 @@ def diagonal_sorting(matrix):
         
 
 print(diagonal_sorting([[3,3,1,1], [2,2,1,2], [1,1,1,2]]))
+
+
+from collections import defaultdict
+
+def diagonal_sort(matrix):
+    rows, cols = len(matrix), len(matrix[0])
+    diagonals = defaultdict(list)
+    
+    for i in range(rows):
+        for j in range(cols):
+            diagonals[i-j].append(matrix[i][j])
+    
+    for key in diagonals:
+        diagonals[key].sort(reverse=True)
+    
+    for i in range(rows):
+        for j in range(cols):
+            matrix[i][j] = diagonals[i-j].pop()
+    
+    return matrix
+
+matrix = [
+    [3,3,1,1],
+    [2,2,1,2],
+    [1,1,1,2]
+]
+result = diagonal_sort(matrix)
+for row in result:
+    print(row)

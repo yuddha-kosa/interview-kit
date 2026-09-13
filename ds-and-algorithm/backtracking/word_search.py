@@ -46,3 +46,18 @@ print(word_search([['A','B','C','E'], ['S','F','C','S'], ['A','D','E','E']], wor
 
 word1 = "ABCD"
 print(word_search([['A','B'], ['C','D']], word1))
+
+
+
+'''
+for each point it can go in max 4 directions...so if we look it as a tree ..at level 0 -1..at level 1 ..4..at level 2 ..16..so it growing by 4 to the pow level...we will do this for row*col time in worst case..so time complexity is:
+O(row*col*4 to the pow L)
+
+Time:  O(row × col × 4^L)   -- confirmed correct, your derivation
+Space: O(L)                  -- NOT O(row×col) — bounded by
+                                 word length, confirmed by
+                                 measurement above (max size
+                                 stayed at 4, matching L=4,
+                                 regardless of the 100-cell grid)
+
+'''

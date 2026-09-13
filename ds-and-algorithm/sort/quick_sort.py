@@ -62,3 +62,48 @@ Quick sort is pre-order divide and conquer —
 work (partition) happens before recursion,
 nothing happens on the way back up.
 '''
+
+def partition_using_high_as_pivot(arr, start, end):
+    pivot = arr[end]
+    pt = start
+    #print(f"start pointer: {pt}, start: {start} {arr[start]}, end: {end}, {arr[end]}")
+
+    for i in range(start, end):
+        if arr[i] < pivot:
+            arr[pt], arr[i] = arr[i], arr[pt]
+            pt += 1
+    
+    #print(f"pointer: {pt}, start: {start} {arr[start]}, end: {end}, {arr[end]}")
+    arr[end], arr[pt] = arr[pt], arr[end]
+    #print(f"arr: {arr}")
+    return pt
+
+def partition_using_start_as_pivot(arr, start, end):
+    pivot = arr[start]
+    pt = start + 1
+   
+    for j in range(start+1, end+1):
+        if arr[j] < pivot:
+            arr[pt], arr[j] = arr[j], arr[pt]
+            pt += 1
+    arr[pt-1], arr[start] = arr[start], arr[pt-1]
+    
+    return pt-1
+           
+
+def quick_sort_new(arr):
+    def qsort(arr, start, end):
+        if start < end:
+            #pivot = partition_using_start_as_pivot(arr, start, end)
+            pivot = partition_using_high_as_pivot(arr, start, end)
+
+            qsort(arr, start, pivot-1)
+            qsort(arr, pivot+1, end)
+        
+    
+
+    qsort(arr, 0, len(arr)-1)
+    return arr
+
+
+print(quick_sort_new([10, 2, 33, 4, 5, 7, 8, 0]))

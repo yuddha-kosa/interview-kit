@@ -26,7 +26,9 @@ def lowest_replacing_char(text, k):
     for right in range(len(text)):
 
         freq[text[right]] = freq.get(text[right], 0) + 1
-
+        # in any window if the max_frquency exceeds the current max_frequency then
+        # only it make sense to consider it,  otherwise no...that's why we just calculate max_freq
+        # once and increase left by 1. 
         max_freq = max(max_freq, freq[text[right]])
 
         while (right-left+1)-max_freq > k:
