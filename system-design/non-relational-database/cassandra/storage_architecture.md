@@ -43,20 +43,62 @@ There is a fundamental difference between how data looks to your code versus how
 
 ## Visualizing the Disk Flat Tape
 Cassandra uses a Row Marker (a structural metadata tag containing the clustering key value) to mark where a logical row begins, followed immediately by its regular columns.
-Given a table with 2 regular columns (action_name, device) and 5 distinct data entries grouped by a clustering key (action_time) under User_A:
+
+Take this table:
+
+```sql
+CREATE TABLE user_activity (
+    user_id     text,
+    action_time timestamp,
+    action_name text,
+    device      text,
+    PRIMARY KEY (user_id, action_time)
+);
+```
+
+* **Partition Key = `user_id`** — hashed into the Token that decides *which node(s)* own the data, and it's the boundary that groups rows physically together on disk.
+* **Clustering Key = `action_time`** — decides the *sort order of rows inside that partition*. It does not affect which node owns the data, only the on-disk ordering.
+* **Regular columns = `action_name`, `device`** — the actual payload cells attached to each row.
+
+Given 5 distinct data entries under partition `User_A`, sorted by clustering key `action_time`:
 
 * Your Application Sees (Logical CQL Rows): 5 neat tabular rows inside a grid.
-* The Physical Storage Disk Sees (One Wide Row Partition): 5 Row Markers and 10 Column Cells laid out flatly, back-to-back, pre-sorted by the timeline:
 
-💾 [PARTITION HEADER: User_A] 
-      │
-      ├── 🏷️ [Row Marker: 10:00 AM] ── (Holds clustering key value)
-      │     ├── 📄 [Column: action_name] = "Login"
-      │     └── 📄 [Column: device]      = "Mobile"
-      │
-      ├── 🏷️ [Row Marker: 10:05 AM]
-      │     ├── 📄 [Column: action_name] = "Click"
-      │     └── 📄 [Column: device]      = "Mobile"
+| user_id (Partition Key) | action_time (Clustering Key) | action_name | device  |
+|--------------------------|-------------------------------|-------------|---------|
+| User_A                   | 10:00:00                      | Login       | Mobile  |
+| User_A                   | 10:05:00                      | Click       | Mobile  |
+| User_A                   | 10:12:00                      | Click       | Desktop |
+| User_A                   | 10:20:00                      | Purchase    | Desktop |
+| User_A                   | 10:47:00                      | Logout      | Mobile  |
+
+* The Physical Storage Disk Sees (One Wide Row Partition): 1 Partition Header, 5 Row Markers, and 10 Column Cells (2 per row, per the Cell Multiplying Rule) laid out flatly, back-to-back, pre-sorted by the clustering key:
+
+```text
+PARTITION HEADER  » user_id = "User_A"        (Token hash decides which node stores this whole block)
+  |
+  |-- ROW MARKER   » action_time = 10:00:00   (clustering key value; marks start of logical row 1)
+  |     |-- CELL » action_name = "Login"
+  |     `-- CELL » device      = "Mobile"
+  |
+  |-- ROW MARKER   » action_time = 10:05:00   (logical row 2)
+  |     |-- CELL » action_name = "Click"
+  |     `-- CELL » device      = "Mobile"
+  |
+  |-- ROW MARKER   » action_time = 10:12:00   (logical row 3)
+  |     |-- CELL » action_name = "Click"
+  |     `-- CELL » device      = "Desktop"
+  |
+  |-- ROW MARKER   » action_time = 10:20:00   (logical row 4)
+  |     |-- CELL » action_name = "Purchase"
+  |     `-- CELL » device      = "Desktop"
+  |
+  `-- ROW MARKER   » action_time = 10:47:00   (logical row 5)
+        |-- CELL » action_name = "Logout"
+        `-- CELL » device      = "Mobile"
+```
+
+Each `ROW MARKER` is the physical separator between rows — it's what lets Cassandra know "logical row N ends here, logical row N+1 begins here" inside one continuous partition, without needing row 2's data to repeat the partition key at all. Only the clustering key value travels with each row marker; the partition key is stamped once, at the top, in the header.
 
 Because of this sequential, physical proximity layout, a query utilizing LIMIT 3 can jump straight to the partition header using companion Index and Bloom Filter files, read exactly 3 Row Markers linearly, and safely stop reading the disk immediately.
 ------------------------------
