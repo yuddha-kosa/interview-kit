@@ -32,6 +32,17 @@ An SSTable (Sorted String Table) is the final, permanent file structure on disk.
 * Isolation: The file system enforces strict nesting isolation: /data/[Keyspace]/[Table-UUID]/mc-X-big-Data.db. SSTables can never be shared across different keyspaces.
 * Compaction: A background process that reads multiple old SSTables, merges their data, discards overwritten fields/tombstones, writes one consolidated new SSTable, and deletes the old ones to keep reads fast.
 
+### Reconciling "Immutable" with "One File, Many Partitions"
+
+Immutability only kicks in the moment a file hits disk — it says nothing about how much can accumulate *before* that moment. Two things follow from this:
+
+* **A Memtable is shared, not partition-scoped.** It buffers every write the node receives for a table — any partition key, any clustering key — sorted together in RAM until it fills up and flushes. Whatever happened to be sitting in that Memtable at flush time all lands in the same new SSTable. So yes: a single SSTable can hold data from many different partitions (`User_A`, `User_B`, `User_Z`, ...), and it can just as easily hold multiple rows of the *same* partition — e.g. all 5 of `User_A`'s rows from the example above, if they all arrived before that Memtable flushed.
+* **An update's destination depends on timing, not identity.**
+   * If the update arrives *before* the original write's Memtable has flushed, they're both still just sitting in RAM — the newer write supersedes the older one there, and only the latest cell for that column ever reaches disk.
+   * If the update arrives *after* the original SSTable is already on disk, it has nowhere to go but whatever Memtable is currently active — a different buffer — which later flushes into a **brand-new, separate SSTable**. The old file is never reopened to patch the value in place; it just sits there, now holding a stale cell.
+
+**Consequence:** a single logical row can end up scattered across several SSTable files over time, each holding a different timestamped version of the same cell. A read for that partition must consult every SSTable that might contain it (Bloom filters cheaply skip the ones that definitely don't), pull the matching cells from each, and resolve conflicts by **last-write-wins on timestamp** — newest cell wins, independently, per column. That's the read-amplification cost of an LSM tree. **Compaction** is the cleanup: it merges several old SSTables into one new one, keeps only the winning (latest, non-tombstoned) cell per column, and deletes the inputs — collapsing the spread back down, until the next round of writes spreads it out again.
+
 ------------------------------
 ## 5. Physical Mapping: Partitions vs. CQL Rows
 There is a fundamental difference between how data looks to your code versus how it looks to the hard drive:

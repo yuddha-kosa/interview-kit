@@ -16,21 +16,23 @@ Let’s trace your exact scenario:
 * The Write: A data item hashes to 11 o'clock. The coordinator sends the write to Node 1 (the primary coordinator for that range), which replicates it clockwise to Node 5 and Node 6.
 * The Read: A read request for that same key bypasses Node 1 and lands directly on Node 5.
 
+```text
                [ Read Request for Key X ]
-                           │
-                           ▼
-                    ┌──────────────┐
-                    │    Node 5    │ 
-                    └──────────────┘
-                           │
-        ┌──────────────────┴──────────────────┐
-        ▼                                     ▼
+                           |
+                           v
+                    +--------------+
+                    |    Node 5    |
+                    +--------------+
+                           |
+        +------------------+------------------+
+        v                                     v
 1. Run Hash Function                 2. Look at Local Storage
-   • Hash(Key X) = 11 o'clock           • "Does 11 o'clock belong
-   • Clockwise Walk = Node 1             to Node 1?" -> YES.
-   • Replication Chain:              • "Am I in Node 1's replica
-     Node 1 -> Node 5 -> Node 6          chain?" -> YES.
-                                        • Fetch data & return it!
+   - Hash(Key X) = 11 o'clock           - "Does 11 o'clock belong
+   - Clockwise Walk = Node 1              to Node 1?" -> YES.
+   - Replication Chain:               - "Am I in Node 1's replica
+     Node 1 -> Node 5 -> Node 6           chain?" -> YES.
+                                         - Fetch data & return it!
+```
 
 When Node 5 receives the read request for Key X:
 
