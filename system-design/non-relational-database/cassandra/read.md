@@ -41,6 +41,16 @@ When Node 5 receives the read request for Key X:
    3. It verifies local ownership: Node 5 realizes, "I am Node 5! I am officially one of the designated replicas for this key's range."
    4. It serves the data: Node 5 looks in its local storage engine (SSTable/Memtable), fetches the data, and returns it to the client (or coordinator).
 
+## 4. Why "Fetch Data & Return It" Isn't Actually Free
+Step 4 above — Node 5 looking in its local storage engine — is where most of a read's real cost lives. It isn't one lookup; it's several, stacked:
+
+* **It has to check the Memtable *and* every relevant SSTable.** As covered in `storage_architecture.md`, a partition's history can be scattered across multiple SSTable files if it received writes/updates at different times (each flush produces a new, immutable file). A read has to gather from all of them, not just one.
+* **Bloom filters make this cheaper, not free.** Each SSTable keeps a Bloom filter in memory that can say "this partition is *definitely not* in this file" very fast, letting Cassandra skip most SSTables without a disk seek. But a Bloom filter can only rule files *out* for certain — never rule one *in* for certain — so if the partition genuinely lives in 4 SSTables, all 4 still get read.
+* **The results get merged by timestamp.** For every SSTable (and the Memtable) that does match, Cassandra pulls the relevant cells and reconciles them column-by-column using last-write-wins — the cell with the newest timestamp wins, independent of which file it came from.
+* **This still isn't the whole story at higher consistency levels.** Everything above only describes what happens on Node 5. For any consistency level above ONE, the coordinator does this same process against multiple replicas (e.g. Node 5 *and* Node 6) and reconciles *their* results too — triggering a background Read Repair if they disagree.
+
+This is exactly why partition design matters for read performance, not just write throughput: a partition scattered across many SSTables (from lots of updates/deletes) or one that's grown unbounded is doing more work on every single read, no matter how cheap the routing/ownership math above is.
+
 ## Summary for your Interview Notes
 A replica node doesn't need to change its token range to match Node 1. It simply uses the global ring topology map to mathematically prove to itself: "Based on this key's hash value, I am one of its designated clockwise guardians, so I am supposed to hold this data."
 If a request ever lands on a node that mathematically determines it shouldn't have the data, it will simply act as a Coordinator and proxy the request to the correct nodes.
