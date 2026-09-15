@@ -70,3 +70,4 @@ Cassandra data modeling flips the relational mindset: you design tables around y
 * [storage_architecture.md](storage_architecture.md) — physical SSTable/Memtable layout, partition vs. clustering key mechanics.
 * [read.md](read.md) — how a read request finds the right replica node.
 * [how_data_is_written.md](how_data_is_written.md) — the write path in detail.
+* [tradeoff.md](tradeoff.md) — why Cassandra vs. alternatives, multi-DC/failure reasoning, and capacity math for the interview.
