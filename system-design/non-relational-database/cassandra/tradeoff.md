@@ -68,3 +68,4 @@ Don't just say "we'll use Cassandra" — show the requirements turn into concret
 * [storage_architecture.md](storage_architecture.md) — physical SSTable/Memtable layout, the $W + R > N$ formula.
 * [read.md](read.md) — token ring routing and why a local read still touches multiple SSTables.
 * [data_modelling.md](data_modelling.md) — partition/clustering key design, tombstones, why writes are cheaper than reads.
+* [../dynamodb/dynamodb_vs_cassandra.md](../dynamodb/dynamodb_vs_cassandra.md) — where DynamoDB actually diverges from everything above.
