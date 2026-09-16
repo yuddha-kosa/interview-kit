@@ -27,7 +27,7 @@ Check items off as we finish each one. Order follows the theme grouping below; f
 - [x] 9. Database evaluation: Postgres vs. CockroachDB vs. YugabyteDB
 
 **Kubernetes & networking (§3)**
-- [ ] 10. DNAT table corruption under low resources
+- [x] 10. DNAT table corruption under low resources
 - [ ] 11. API server leader election problem
 - [ ] 12. VM IP address change breaking the API server / etcd
 - [ ] 13. Headless vs. ClusterIP vs. NodeIP — fundamentals gut-check
@@ -43,7 +43,7 @@ Check items off as we finish each one. Order follows the theme grouping below; f
 **Storage & infra (§5)**
 - [ ] 20. Data store comparison: Postgres (managed/self-hosted) vs. EFS vs. Rook-Ceph vs. S3, Postgres tuning/separation
 - [ ] 21. S3 upload challenges — firewall IP vs. DNS
-- [ ] 22. On-prem server management (customer hardware/network/firewall issues)
+- [x] 22. On-prem server management (customer hardware/network/firewall issues)
 
 **Security (§6)**
 - [x] 23. ECDH, AES, TLS, symmetric vs. asymmetric, signature verification, MITM mitigation
@@ -247,8 +247,9 @@ Resume-backed: **led the OTel rollout across US/India teams, vendor evaluation t
 
 | Question | Best story to use |
 |---|---|
-| "Tell me about a time you disagreed with a technical decision" | Cassandra→Postgres migration, or the CockroachDB/Yugabyte/Postgres evaluation |
-| "Tell me about a production incident you led" | High-severity incident response + OTel-driven triage reduction; or whichever K8s/networking story you flesh out from §3 |
+| "Tell me about a time you disagreed with a technical decision" | Cassandra→Postgres migration, or the CockroachDB/Yugabyte/Postgres evaluation — use these when you drove the change and were right |
+| "Tell me about a time you disagreed and the decision didn't go your way / disagree and commit" | The Xtension-vs-S3 story (§10.11) — a business decision overruled your technical preference, and you committed to making it work anyway. A more honest, more common shape than always being the one who was right — don't skip this one in favor of the flashier stories above |
+| "Tell me about a production incident you led" | The clock-drift/401 mystery (§11.2) is your strongest "hard bug, non-obvious root cause" story — lead with that. The DNAT-corruption-under-resource-pressure story (§11.3) and the Global Accelerator edge-node escalation (§11.4) are strong backups if asked for a second example |
 | "Tell me about a time you made a mistake" | The "wrong database for config data" note you listed — this is a ready-made honest-mistake story, don't skip it just because it's less flattering than the others |
 | "Tell me about a decision made under ambiguity / incomplete information" | Distributed SQL evaluation, or the rogue-device detection design (§7) |
 | "Tell me about influencing without authority / cross-team alignment" | Partnering with US/India teams on architecture and design reviews; OTel rollout across multiple teams |
@@ -369,7 +370,9 @@ Built explicit conventions so a developer writing a Helm chart knows exactly wha
 
 One detail worth folding into your existing security answer: the ECDH layer specifically encrypted *secrets embedded in config* sent from cloud to prem (e.g. credentials pushed as part of a config payload), not sensitive data in general — naming the specific payload type makes the answer more concrete if asked "encrypting what, exactly."
 
-### 10.7 Redis-based device status caching (pairs with §8 edge/device ops; completes #27's "caching fix")
+### 10.7 Redis-based device status caching (pairs with §8 edge/device ops)
+
+**Correction (Sep 16, round 3): this does NOT resolve #27.** I mismapped this earlier — #27 is specifically about the Conductor/orchestration-layer database problem, which is a RapidAI story, not this ZEDEDA device-status story. #27's real resolution is now in §10.9 below (Postgres tuning + the ElastiCache migration). This Redis story stands on its own as a separate, valid ZEDEDA-era judgment call — just not the answer to #27.
 
 **Attribution (confirmed Sep 16): ZEDEDA, pre-Staff — your own decision to introduce Redis here.** Still a legitimate "identified a bottleneck and fixed it on your own initiative" story even though it predates your Staff title — frame it as early-career judgment, not current-scope authority.
 
@@ -399,10 +402,79 @@ One detail worth folding into your existing security answer: the ECDH layer spec
 
 **Action**: tuned Postgres configuration directly — shared_buffers, working memory (work_mem), WAL size, and maintenance_work_mem (which governs vacuum performance).
 
-**Result**: optimized performance — no hard number given yet.
+**Result (updated Sep 16, round 3) — this is #27's real resolution**: Postgres tuning bought headroom but wasn't the final answer — the scale issue at the orchestration layer eventually required migrating the hot-path data off Postgres onto **ElastiCache** (managed Redis). Tuning-then-migrate is a stronger story than tuning alone: it shows you didn't just apply config knobs and declare victory, you recognized when the ceiling was structural rather than a tuning problem and moved the workload to a store that actually matched its access pattern. This is the correct resolution for **checklist #27** (Conductor scaling + DB problems + the caching fix) — not the ZEDEDA device-status story in §10.7, which I'd mismapped there earlier.
 
-**Caveat, stated plainly**: checklist item #5 is phrased as "schema/index/query-pattern fixes," and this story is really about *configuration* tuning, not schema or query redesign. It's a legitimate, distinct "DB was the bottleneck" story — just don't present it as answering a schema/indexing question if that's specifically what's asked. If you have a separate schema/index/query-pattern example, #5 is still worth filling in with that.
+**Caveat, stated plainly**: checklist item #5 is phrased as "schema/index/query-pattern fixes," and the Postgres-tuning half of this story is really about *configuration* tuning, not schema or query redesign. It's a legitimate, distinct "DB was the bottleneck" story — just don't present it as answering a schema/indexing question if that's specifically what's asked. If you have a separate schema/index/query-pattern example, #5 is still worth filling in with that.
 
 ### 10.10 Post-rollout customer/service stabilization (item 11 — still not usable, flagged honestly)
 
 As given, this is a topic, not a story: "worked closely with the service team and customers on firewall, network, and resource-management issues" has no single incident, no arc, nothing to walk an interviewer through. It doesn't resolve checklist item #22. Worth picking *one* specific instance (a particular customer's firewall misconfiguration, a specific resource-exhaustion incident) and giving it the same STAR treatment as the others above — as written, there isn't enough here to build one.
+
+**Update (Sep 16, round 3): #22 is now resolved** — not by this generic note, but by the real incidents in §11 below (11.1 and 11.3 are both on-prem customer hardware/network/firewall issues with real root causes and fixes). §10.10 above stays as-is as a reminder that a topic without a specific incident isn't usable on its own — §11 is what actually closed the gap.
+
+
+### 10.11 Disagree and commit: Xtension vs. building on S3 in the upload/download path (pairs with §5; new "disagreed and was overruled" story)
+
+**Attribution: assumed RapidAI, Staff era — not yet explicitly confirmed by you.** The upload/download-path context matches your platform work; flag if this is actually a different company.
+
+**Situation**: a decision was being made about the upload/download path — whether to route it through Xtension or build a solution on S3.
+
+**Action**: you disagreed with the direction — you wanted to build the S3-based solution instead. Management made the call to go with Xtension anyway, as a business decision (not a technical one you could out-argue). You didn't dig in or disengage — you agreed to the decision and then worked directly with the Xtension team to make that path solid.
+
+**Result**: TODO — what did "solidify the path" actually involve, and did it work out? Worth having one concrete detail (a specific reliability or integration problem you closed with them) so this doesn't stay abstract.
+
+**Why this is a genuinely different story from your other "disagreed" material**: the CockroachDB/Yugabyte evaluation and the Cassandra migration are both "I was right, and I drove the change" stories. This one is the opposite shape — you were overruled by a business (not technical) constraint, and the signal here is what you did *after* losing the argument: you didn't coast or stay bitter about it, you went and made the decision that was made actually work well. That's a distinct and important Staff-level signal ("disagree and commit") that the other stories don't cover. Use this one specifically when asked about disagreeing with a decision that *didn't* go your way — it's a more honest and more common real-world shape than always being the one who was right.
+
+---
+
+## 11. Customer incident / production debugging stories (Sep 16, third brain-dump)
+
+Four new, genuinely excellent "tell me about a bug you debugged" / "tell me about a production incident" stories — these are outside the original 31-item checklist, but two of them directly resolve existing items (#10 and #22, now checked above). **Attribution for all four: assumed RapidAI, Staff era** — on-prem hospital customers, Global Accelerator, and the gateway/token upload path all match your RapidAI platform context; flag if any of these are actually from elsewhere.
+
+### 11.1 Intermittent data loss on upload/download — customer firewall dropping packets
+
+**Situation**: a customer reported missing results.
+
+**Investigation**: traced to intermittent data loss during upload/download — not a total failure, which is what made it hard to spot initially.
+
+**Root cause**: the customer's firewall was silently dropping some packets.
+
+**Note**: this is a *different* firewall issue from checklist item #21 ("S3 upload challenges — firewall IP vs. DNS," about stale IP-based allowlisting) — don't conflate the two if asked to go deep on either. #21 is still open. This one (#11.1) is really about on-prem network reliability and belongs with #22 below.
+
+### 11.2 Clock drift and the curious case of 401 Unauthorized
+
+This is probably your best "hard bug, non-obvious root cause" story in the whole document — genuinely good material, worth rehearsing properly.
+
+**Situation**: on-prem issues a short-lived token (5-minute TTL) from the gateway to authorize uploads/downloads. Customers started seeing uploads fail partway through with 401 Unauthorized — a chunk that had started uploading successfully would get rejected if the operation ran past the token's window.
+
+**Investigation, told as a real diagnostic arc**: network speed looked fine, ruling out the obvious "upload just took too long because the link is slow" explanation. The actual cause took real digging to find.
+
+**Root cause**: the NTP server the customer had configured had gone down, and their on-prem clock had drifted by several minutes as a result. That drift silently ate into the token's effective time-to-live — a token that should have had 5 minutes left might already be expired by clock skew alone, independent of how long the upload actually took.
+
+**Result**: (worth adding, if you have it — what was the fix: enforcing/monitoring NTP health on-prem, extending token TTL, clock-skew tolerance in the token validation itself, or something else?)
+
+**Why this is strong**: it's a genuine "the obvious hypothesis was wrong" story — you ruled out network speed first, which is exactly the right instinct, and the real cause (infrastructure the customer owned, several layers removed from the actual symptom) is the kind of thing that's very hard to fake having actually lived through. Good answer to "tell me about a bug that took a while to find" or "tell me about debugging something non-obvious."
+
+### 11.3 DNAT table corruption on a 3-node on-prem cluster (resolves checklist #10)
+
+**Situation**: pods on a 3-node on-prem cluster couldn't communicate with each other.
+
+**Investigation**: found the DNAT rule table was missing entries.
+
+**Root cause**: the cluster was running in a resource-constrained environment, and Kubernetes was exhibiting unreliable/undefined behavior under that resource pressure — the DNAT corruption was a symptom of resource starvation, not a DNAT bug itself.
+
+**Fix**: had the customer allocate more resources to the cluster; the networking issue resolved once the resource constraint was removed.
+
+**Result**: this is your answer to checklist item #10, which was previously fully open — "root-caused a kube-proxy DNAT table corruption under resource pressure" was explicitly called out earlier in this doc as exactly the kind of low-level infra story that separates a Staff answer from a generic one. You now have it, with a real root cause and a real fix.
+
+### 11.4 Global Accelerator edge node misbehaving near Virginia
+
+**Situation**: uploads and downloads were failing intermittently on your us-east cloud cluster.
+
+**Investigation**: narrowed the failures to traffic near the Virginia region specifically, which pointed at the AWS Global Accelerator edge node serving that area rather than anything in your own stack.
+
+**Action**: raised the issue directly with AWS support/account team rather than continuing to chase it internally once the evidence pointed outside your system boundary.
+
+**Result**: AWS found and fixed the issue on their end; your systems were fine once their edge node was repaired.
+
+**Why this is worth having ready**: it's a good example of correctly identifying *where* a system boundary actually is — recognizing when a problem is genuinely not yours to fix internally, building the evidence to make that case, and escalating effectively to a vendor rather than burning time on a local fix for someone else's bug. Pairs well with the Global Accelerator material already in §4 if asked to go deep on your HA architecture.
