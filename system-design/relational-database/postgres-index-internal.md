@@ -88,6 +88,57 @@ When an index scan looks for a highly duplicated key that now straddles multiple
 
 ---
 
+## 6. Using two separate indexes in one query (BitmapAnd)
+
+Say a table has two independent single-column indexes, `idx_id` on `id` and `idx_createtime` on `createtime`, and a query filters on both:
+
+```sql
+SELECT * FROM my_table WHERE id > x AND createtime > y;
+```
+
+Postgres does **not** traverse one index and then, for each match, re-traverse the other — the two indexes are never nested. The planner instead picks one of two shapes, based on cost estimates.
+
+### Plan A: one index + an in-memory filter
+
+If one condition is far more selective than the other, the planner uses only that index to fetch candidate rows, and checks the other condition directly against the fetched heap tuple — no second index traversal at all.
+
+```text
+Index Scan using idx_createtime on my_table
+  Index Cond: (createtime > y)
+  Filter: (id > x)
+```
+
+The unused index (`idx_id` here) sits idle for this query.
+
+### Plan B: BitmapAnd — both indexes used in parallel, not nested
+
+If neither condition alone is very selective but the two combined are, Postgres scans **both** indexes independently, each producing a bitmap of matching TIDs, then intersects the bitmaps in memory before touching the heap at all:
+
+```text
+Bitmap Heap Scan on my_table
+  Recheck Cond: (id > x AND createtime > y)
+  ->  BitmapAnd
+        ->  Bitmap Index Scan on idx_id
+              Index Cond: (id > x)
+        ->  Bitmap Index Scan on idx_createtime
+              Index Cond: (createtime > y)
+```
+
+- Each `Bitmap Index Scan` walks its own B-tree once and, instead of jumping straight to the heap like a normal Index Scan, marks a bit per matching TID — or per *page*, if there are too many matches to track individually and `work_mem` forces it to go "lossy" (page-granularity instead of row-granularity).
+- `BitmapAnd` is a cheap bitwise AND of the two bitmaps — only rows (or pages) present in *both* survive.
+- A single `Bitmap Heap Scan` then visits the heap in **physical page order**, not index order, so each page is read at most once even though two indexes contributed matches — avoiding the random I/O a plain Index Scan would cause.
+- `Recheck Cond` re-verifies the actual row against both conditions whenever the bitmap was lossy (page-level only), since a page-level bit doesn't guarantee every row on that page qualifies.
+
+### Why the planner picks one over the other
+
+It comes down to selectivity estimates from `pg_statistic`. If `id > x` alone already eliminates, say, 95% of rows, the planner just uses `idx_id` and filters `createtime` cheaply in memory — building and intersecting a second bitmap buys nothing. BitmapAnd wins when neither predicate alone is selective enough, but the combination is — e.g. `id > x` matches 40% of rows and `createtime > y` matches 30%, but together only ~12% — so intersecting bitmaps before hitting the heap avoids a lot of wasted heap fetches.
+
+### An alternative: a composite index
+
+If this exact combined filter is common, a single composite index `(id, createtime)` (column order chosen by whichever predicate is filtered more often, or more selectively) usually beats both plans above — one B-tree traversal instead of two index scans plus a bitmap merge. Only the leading column gets a true range-narrowed traversal; the second column acts more like an in-index filter on the range already selected by the first.
+
+---
+
 ## References
 
 1. [Percona: PostgreSQL 14 B-Tree Index — Reduced Bloat with Bottom-Up Deletion](https://www.percona.com/blog/postgresql-14-b-tree-index-reduced-bloat-with-bottom-up-deletion/)
