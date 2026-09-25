@@ -18,10 +18,17 @@ Full Jitter Stream:       | . |  .  |   .   | .  |   .  |   .
 ```
 
 ### Key Equations
-1. **Exponential Delay Boundary:**  
-   $$\text{Max Backoff} = \min(\text{MAX\_DELAY}, \text{base} \times 2^{\text{attempt}})$$
-2. **Full Jitter Randomization:**  
-   $$\text{Sleep Time} = \text{UniformRandom}(0, \text{Max Backoff})$$
+1. **Exponential Delay Boundary:**
+
+   ```
+   Max Backoff = min(MAX_DELAY, base × 2^attempt)
+   ```
+
+2. **Full Jitter Randomization:**
+
+   ```
+   Sleep Time = UniformRandom(0, Max Backoff)
+   ```
 
 ### Core Variables Defined
 *   **`base`**: The initial delay window applied on the first retry attempt (typically `0.5s` to `1.0s`).
@@ -63,16 +70,17 @@ def execute_with_retry(task_function, max_attempts=5, base=1.0, max_delay=30.0):
 A circuit breaker isolates fragile dependencies by acting as an in-memory or distributed state machine wrapper around outgoing remote network operations. 
 
 ```
-        +---------+    Failure Rate > Threshold     +--------+
-------> | CLOSED  | ------------------------------> |  OPEN  |
-        +---------+                                 +--------+
-             ^                                           |
-             |                                           | Cooldown Elapsed
-       Tests |                                           | (Allows 1 Probe)
-    Succeed  |                                           V
-        +-----------+                               +-----------+
-        | HALF-OPEN | <---------------------------- | HALF-OPEN |
-        +-----------+          Test Fails           +-----------+
+                     Failure Rate > Threshold
+        +---------+ ------------------------> +--------+
+------> | CLOSED  |                           |  OPEN  |
+        +---------+ <------------------------ +--------+
+             ^                Test Fails            |
+             |                                      | Cooldown Elapsed
+             | Test Succeeds                        | (Allows 1 Probe)
+             |                                      V
+             |              +-----------+           |
+             +--------------| HALF-OPEN | <---------+
+                             +-----------+
 ```
 
 ### Data Structure Blueprint
