@@ -61,7 +61,7 @@ def largest_histogram(histogram):
         while stack and histogram[i] < histogram[stack[-1]]:
             length = histogram[stack.pop()]
             if stack:
-                width = i-stack[-1]-1
+                width = i-stack[-1]-1 # new top of stack after pop, -1 is for the ith bar
             else:
                 width = i
             max_area = max(max_area, (length*width))

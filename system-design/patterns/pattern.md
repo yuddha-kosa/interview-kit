@@ -1,6 +1,10 @@
 Read scaling:
 - Add caching with redis, for hot keys keep one writer server and replicate the data on n other servers and load balance but the invalidation now needs to happen on all the nodes.
 - Batch request from multiple user for the same key before hitting cahing layer.
+- denormalization
+- indexing
+- replication on multiple shards
+- multiple read replicas
 
 Write:
 if one node is not able to handle add more shard and use consistent hashing to distribute data.
@@ -57,3 +61,7 @@ Live read requests simply read that single cached string key in $O(1)$ time. Thi
 Would you like to write out a Python code blueprint simulating this background aggregation loop, or are you ready to test these patterns in your first live Mock System Design Case Study?
 
 
+Circuit breaker → "Meta is unhealthy; stop calling it."
+Rate limiter → "Meta is healthy, but only allows X requests/sec."
+Backpressure → "Downstream can't keep up; slow the upstream producer/consumer."
+Retry policy → "When/how should this particular failed event be attempted again?"

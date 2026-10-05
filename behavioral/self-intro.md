@@ -1,6 +1,10 @@
 # "Tell me about yourself" / Brief intro script
 
-Restructured Sep 16 as a platform-build narrative, per your outline — opens with the product, then walks the 0-to-1 build pillar by pillar (data, availability, extensibility, security, observability, deployability, standards), and closes on engineering principle. This is a stronger Staff-level shape than a bullet list: it shows you thinking in systems, not just listing wins. One open flag below before you lock it in — see "Needs your confirmation."
+"At RapidAI, I am part of the platform team that built the platform from the ground up. The platform takes DICOM data from hospital systems, processes it through AI models either on-prem or in the cloud, and delivers the resulting AI output to downstream systems.
+
+One of the major platform requirements was high availability because this is a mission-critical healthcare system. I led the architecture work around multi-region HA, including traffic routing, session stickiness, Kubernetes, and the S3-based integration boundary with downstream systems.
+
+The interesting part wasn't simply running two regions. We had stateful upload workflows and downstream systems with different HA characteristics, so we had to reason about failure and consistency across every layer."
 
 ## ~90-105 second version (use this as the default)
 
