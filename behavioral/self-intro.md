@@ -1,5 +1,25 @@
 # "Tell me about yourself" / Brief intro script
 
+At RapidAI, I am part of the platform team that built the platform from the ground up. The platform takes DICOM data from hospital systems, processes it through AI models either on-prem or in the cloud, and delivers the resulting AI output to downstream systems. 
+The platform processes around 10 million medical scans a year across roughly 2,000 hospitals, running more than 25 AI modules — at its core it's a data pipeline that orchestrates those modules and gets their results out reliably. I've spent the last few years building most of the foundation underneath it.
+
+some of the foundational works were:
+1. Selecting the right data architecture.
+2. HA of the platform.
+3. Building the orchestration layer and abstraction from models for deployment.
+4. Otel based distributed tracing.
+5. Foundation layer for the full code base- writing abstraction layers and service templates for other to use.
+6. CI/CD pipeline for deployment. (Five config problems)
+
+Before this I was in ZEDEDA which is an edge orchestration company, which helps other company deploying and managing edge devices and application life cycle.
+1. I was part of the controller team and I was the leading contributor.
+2. Built service for authentication and authorization.
+3. Config management.
+4. Handling of device data and scalability challenges.
+5. Security at rest and fly.
+6. Database migration from cassandra to postgres.
+
+
 "At RapidAI, I am part of the platform team that built the platform from the ground up. The platform takes DICOM data from hospital systems, processes it through AI models either on-prem or in the cloud, and delivers the resulting AI output to downstream systems.
 
 One of the major platform requirements was high availability because this is a mission-critical healthcare system. I led the architecture work around multi-region HA, including traffic routing, session stickiness, Kubernetes, and the S3-based integration boundary with downstream systems.
