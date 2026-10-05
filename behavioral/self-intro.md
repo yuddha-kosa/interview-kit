@@ -11,7 +11,7 @@ some of the foundational works were:
 5. Foundation layer for the full code base- writing abstraction layers and service templates for other to use.
 6. CI/CD pipeline for deployment. (Five config problems)
 
-Before this I was in ZEDEDA which is an edge orchestration company, which helps other company deploying and managing edge devices and application life cycle.
+Before this I was in ZEDEDA which is an edge orchestration company, which helps other company deploy and manage edge devices, applications and it's life cycle.
 1. I was part of the controller team and I was the leading contributor.
 2. Built service for authentication and authorization.
 3. Config management.
